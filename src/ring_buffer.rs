@@ -1,5 +1,6 @@
 use core::mem;
 
+/// Fixed size ring buffer.
 pub struct RingBuffer<const SIZE: u8>
 where
     [(); SIZE as usize]:,
@@ -12,7 +13,7 @@ impl<const SIZE: u8> RingBuffer<SIZE>
 where
     [(); SIZE as usize]:,
 {
-    /// Create a new buffer full of zeroes.
+    /// Create a new buffer filled with zeroes.
     pub const fn new() -> Self {
         Self {
             samples: [0; SIZE as usize],
@@ -33,6 +34,7 @@ where
         old_value
     }
 
+    /// Return iterator over `count` values in the buffer.
     pub fn iter(&self, count: u8) -> Iter<SIZE> {
         Iter {
             samples: &self.samples,
@@ -42,6 +44,7 @@ where
     }
 }
 
+/// Iterator over ring buffer data.
 pub struct Iter<'a, const SIZE: u8>
 where
     [(); SIZE as usize]:,
