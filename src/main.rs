@@ -1,9 +1,10 @@
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
+#![feature(generic_const_exprs)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
-use core::{cell::UnsafeCell, mem::MaybeUninit};
+use core::{cell::UnsafeCell, mem::{MaybeUninit, self}};
 use panic_halt as _;
 use ufmt::{uDisplay, uwrite};
 use void::ResultVoidExt;
@@ -20,6 +21,7 @@ use hal::{
 };
 
 mod led;
+mod ring_buffer;
 mod usart;
 
 /// Board clock rate.
@@ -34,8 +36,8 @@ const BAUDRATE: u32 = 9600;
 /// Width of the PULSE output (in microseconds).
 const PULSE_WIDTH: u8 = 100;
 
-const SHORT_PERIOD: usize = 5;
-const LONG_PERIOD: usize = 60;
+const SHORT_PERIOD: u8 = 5;
+const LONG_PERIOD: u8 = 60;
 
 /// CPM threshold for fast averaging mode.
 const THRESHOLD: u16 = 1000;
@@ -110,12 +112,11 @@ fn delay_ms(ms: u8) {
 /// This interrupt is called on the falling edge of a GM pulse.
 #[avr_device::interrupt(attiny2313)]
 fn INT0() {
+    // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
 
     let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-    if shared.count < u16::MAX {
-        shared.count += 1;
-    }
+    shared.count = shared.count.saturating_add(1);
 
     // Tell main program loop that a GM pulse has occurred.
     shared.event_flag = true;
@@ -138,6 +139,7 @@ fn INT0() {
 /// execute multiple times if we're not careful.
 #[avr_device::interrupt(attiny2313)]
 fn INT1() {
+    // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
 
     delay_ms(25u8);
@@ -159,57 +161,42 @@ fn INT1() {
 /// TIMER1 is setup so this happens once a second.
 #[avr_device::interrupt(attiny2313)]
 fn TIMER1_COMPA() {
-    static mut BUFFER: [u8; LONG_PERIOD] = [0u8; LONG_PERIOD];
-    static mut IDX: u8 = 0u8;
+    static mut BUFFER: ring_buffer::RingBuffer<LONG_PERIOD> = ring_buffer::RingBuffer::new();
 
+    // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
 
     let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
     shared.tick = true;
 
-    let mut count = shared.count;
-    // Reset counter.
-    shared.count = 0;
+    let count = mem::replace(&mut shared.count, 0);
 
     shared.cps = count;
 
-    let oldest_count = BUFFER[*IDX as usize];
-    shared.slow_cpm -= oldest_count as u16;
-
-    if count > u8::MAX as u16 {
-        count = u8::MAX as u16;
+    let count = count.try_into().unwrap_or_else(|_| {
         shared.overflow = true;
-    }
+        u8::MAX
+    });
 
-    shared.slow_cpm += count;
+    let oldest_count = BUFFER.put(count);
 
-    // Save current sample to buffer (replacing old value).
-    BUFFER[*IDX as usize] = count as u8;
+    shared.slow_cpm -= oldest_count as u16;
+    shared.slow_cpm += count as u16;
 
     let mut fast_cpm = 0u16;
-    for i in 0..SHORT_PERIOD {
-        let mut x = *IDX as isize - i as isize;
-        if x < 0 {
-            x = LONG_PERIOD as isize + x;
-        }
-        fast_cpm += BUFFER[x as usize] as u16;
+    for val in BUFFER.iter(SHORT_PERIOD) {
+        fast_cpm += val as u16;
     }
-    shared.fast_cpm = fast_cpm * ((LONG_PERIOD / SHORT_PERIOD) as u16);
 
-    // Move to the next entry in the sample buffer.
-    *IDX = if *IDX == (LONG_PERIOD - 1) as u8 {
-        0
-    } else {
-        *IDX + 1
-    };
+    const FAST_CPM_SCALE: u16 = (LONG_PERIOD / SHORT_PERIOD) as u16;
+    shared.fast_cpm = fast_cpm * FAST_CPM_SCALE;
 }
 
 /// Flash LED and beep the piezo.
 fn check_event<P: PinOps>(led: &mut led::Led<Pin<Output, P>>, beeper: &mut TC0) {
     let (event_flag, no_beep) = interrupt::free(|cs| {
         let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-        let event_flag = shared.event_flag;
-        shared.event_flag = false;
+        let event_flag = mem::replace(&mut shared.event_flag, false);
         (event_flag, shared.no_beep)
     });
 
@@ -244,8 +231,7 @@ where
 {
     let report = interrupt::free(|cs| {
         let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-        let tick = shared.tick;
-        shared.tick = false;
+        let tick = mem::replace(&mut shared.tick, false);
 
         if tick {
             let (cpm, mode) = if shared.overflow {
