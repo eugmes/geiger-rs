@@ -1,22 +1,18 @@
 use core::mem;
 
 /// Fixed size ring buffer.
-pub struct RingBuffer<const SIZE: u8>
-where
-    [(); SIZE as usize]:,
+pub struct RingBuffer<const SIZE: usize>
 {
-    samples: [u8; SIZE as usize],
+    samples: [u8; SIZE],
     index: u8,
 }
 
-impl<const SIZE: u8> RingBuffer<SIZE>
-where
-    [(); SIZE as usize]:,
+impl<const SIZE: usize> RingBuffer<SIZE>
 {
     /// Create a new buffer filled with zeroes.
     pub const fn new() -> Self {
         Self {
-            samples: [0; SIZE as usize],
+            samples: [0; SIZE],
             index: 0,
         }
     }
@@ -26,7 +22,7 @@ where
         let elem = self.samples.get_mut(self.index as usize).unwrap();
         let old_value = mem::replace(elem, value);
 
-        self.index = if self.index == SIZE - 1 {
+        self.index = if self.index as usize == SIZE - 1 {
             0
         } else {
             self.index + 1
@@ -45,18 +41,14 @@ where
 }
 
 /// Iterator over ring buffer data.
-pub struct Iter<'a, const SIZE: u8>
-where
-    [(); SIZE as usize]:,
+pub struct Iter<'a, const SIZE: usize>
 {
-    samples: &'a [u8; SIZE as usize],
+    samples: &'a [u8; SIZE],
     index: u8,
     count: u8,
 }
 
-impl<const SIZE: u8> Iterator for Iter<'_, SIZE>
-where
-    [(); SIZE as usize]:,
+impl<const SIZE: usize> Iterator for Iter<'_, SIZE>
 {
     type Item = u8;
 
@@ -66,9 +58,8 @@ where
         }
         self.count -= 1;
 
-        debug_assert!((self.index as usize) < self.samples.len());
         self.index = if self.index == 0 {
-            SIZE - 1
+            (SIZE - 1) as u8
         } else {
             self.index - 1
         };

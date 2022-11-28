@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
-#![feature(generic_const_exprs)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
 use core::{cell::UnsafeCell, mem::{MaybeUninit, self}};
@@ -37,7 +36,7 @@ const BAUDRATE: u32 = 9600;
 const PULSE_WIDTH: u8 = 100;
 
 const SHORT_PERIOD: u8 = 5;
-const LONG_PERIOD: u8 = 60;
+const LONG_PERIOD: usize = 60;
 
 /// CPM threshold for fast averaging mode.
 const THRESHOLD: u16 = 1000;
@@ -188,7 +187,7 @@ fn TIMER1_COMPA() {
         fast_cpm += val as u16;
     }
 
-    const FAST_CPM_SCALE: u16 = (LONG_PERIOD / SHORT_PERIOD) as u16;
+    const FAST_CPM_SCALE: u16 = (LONG_PERIOD as u8 / SHORT_PERIOD) as u16;
     shared.fast_cpm = fast_cpm * FAST_CPM_SCALE;
 }
 
