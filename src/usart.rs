@@ -1,5 +1,4 @@
 pub use avr_hal_generic::usart::Baudrate;
-use void::Void;
 
 use core::marker::PhantomData;
 
@@ -8,6 +7,8 @@ use attiny_hal::{
     port::{PinOps, PD0, PD1},
 };
 use avr_hal_generic::port;
+
+use crate::nano_fmt;
 
 pub trait CharIO {
     type RX: PinOps;
@@ -80,13 +81,8 @@ where
     }
 }
 
-impl<USART: CharIO, RX, TX> ufmt::uWrite for Usart0<USART, RX, TX> {
-    type Error = Void;
-
-    fn write_str(&mut self, s: &str) -> Result<(), Self::Error> {
-        for c in s.bytes() {
-            self.p.raw_write(c);
-        }
-        Ok(())
+impl<USART: CharIO, RX, TX> nano_fmt::NanoWrite for Usart0<USART, RX, TX> {
+    fn write_byte(&mut self, b: u8) {
+        self.p.raw_write(b);
     }
 }

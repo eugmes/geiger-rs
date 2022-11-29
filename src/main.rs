@@ -3,10 +3,12 @@
 #![feature(abi_avr_interrupt)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
-use core::{cell::UnsafeCell, mem::{MaybeUninit, self}};
+use core::{
+    cell::UnsafeCell,
+    mem::{self, MaybeUninit},
+};
+use nano_fmt::{NanoDisplay, NanoWrite};
 use panic_halt as _;
-use ufmt::{uDisplay, uwrite};
-use void::ResultVoidExt;
 
 use attiny_hal as hal;
 use hal::{
@@ -20,6 +22,7 @@ use hal::{
 };
 
 mod led;
+mod nano_fmt;
 mod ring_buffer;
 mod usart;
 
@@ -83,24 +86,12 @@ static mut PULSE: MaybeUninit<Pin<Output, PD6>> = MaybeUninit::uninit();
 static mut BUTTON: MaybeUninit<Pin<Input<PullUp>, PD3>> = MaybeUninit::uninit();
 static mut SHARED_EXINT: MaybeUninit<EXINT> = MaybeUninit::uninit();
 
+#[derive(Clone, Copy)]
 #[repr(u8)]
 enum LoggingMode {
     Slow,
     Fast,
     Instant,
-}
-
-impl uDisplay for LoggingMode {
-    fn fmt<W>(&self, w: &mut ufmt::Formatter<'_, W>) -> Result<(), W::Error>
-    where
-        W: ufmt::uWrite + ?Sized,
-    {
-        match *self {
-            LoggingMode::Slow => w.write_str("SLOW"),
-            LoggingMode::Fast => w.write_str("FAST"),
-            LoggingMode::Instant => w.write_str("INST"),
-        }
-    }
 }
 
 fn delay_ms(ms: u8) {
@@ -224,9 +215,9 @@ fn check_event<P: PinOps>(led: &mut led::Led<Pin<Output, P>>, beeper: &mut TC0) 
 }
 
 /// Log data over the serial port.
-fn send_report<W>(w: &mut W) -> Result<(), W::Error>
+fn send_report<W>(w: &mut W)
 where
-    W: ufmt::uWrite,
+    W: NanoWrite,
 {
     let report = interrupt::free(|cs| {
         let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
@@ -250,9 +241,11 @@ where
 
     if let Some((cps, cpm, mode)) = report {
         // uwrite!(w, "CPS, {}, CPM, {}, {}\r\n", cps, cpm, mode).void_unwrap();
-        uwrite!(w, "{}, {}, {}\r\n", cps, cpm, mode)?;
+        cps.fmt(w);
+        cpm.fmt(w);
+        //mode.fmt(w);
+        //"\r\n".fmt(w);
     }
-    Ok(())
 }
 
 #[hal::entry]
@@ -336,7 +329,7 @@ fn main() -> ! {
         dp.CPU.mcucr.modify(|_, w| w.se().clear_bit());
 
         check_event(&mut led, &mut beeper);
-        send_report(&mut serial).void_unwrap();
+        send_report(&mut serial);
         check_event(&mut led, &mut beeper);
     }
 }
