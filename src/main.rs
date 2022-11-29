@@ -94,10 +94,6 @@ enum LoggingMode {
     Instant,
 }
 
-fn delay_ms(ms: u8) {
-    Delay::new().delay_ms(ms)
-}
-
 /// Pin change interrupt for pin INT0
 /// This interrupt is called on the falling edge of a GM pulse.
 #[avr_device::interrupt(attiny2313)]
@@ -132,7 +128,7 @@ fn INT1() {
     // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
 
-    delay_ms(25u8);
+    Delay::new().delay_ms(25u8);
 
     // Is button still pressed?
     let button = unsafe { BUTTON.assume_init_ref() };
@@ -203,7 +199,7 @@ fn check_event<P: PinOps>(led: &mut led::Led<Pin<Output, P>>, beeper: &mut TC0) 
         }
 
         // 10ms delay gives a nice short flash and 'click' on the piezo.
-        delay_ms(10u8);
+        Delay::new().delay_ms(10u8);
 
         led.turn_off();
 
