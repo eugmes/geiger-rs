@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
-#![feature(asm_experimental_arch)]
 #![feature(concat_bytes)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
@@ -9,9 +8,14 @@ use core::{
     cell::UnsafeCell,
     mem::{self, MaybeUninit},
 };
-use nano_fmt::{NanoDisplay, NanoWrite};
+use geiger::P;
+use geiger::{
+    led::Led,
+    nano_fmt::{NanoDisplay, NanoWrite},
+    ring_buffer::RingBuffer,
+    usart::Usart0,
+};
 use panic_halt as _;
-use progmem::P;
 
 use attiny_hal as hal;
 use hal::{
@@ -24,16 +28,10 @@ use hal::{
     prelude::*,
 };
 
-mod led;
-mod nano_fmt;
-mod progmem;
-mod ring_buffer;
-mod usart;
-
 /// Board clock rate.
 type DefaultClock = hal::clock::MHz8;
 
-type Baudrate = usart::Baudrate<DefaultClock>;
+type Baudrate = geiger::usart::Baudrate<DefaultClock>;
 type Delay = hal::delay::Delay<DefaultClock>;
 
 /// UART baud rate.
@@ -162,7 +160,7 @@ fn INT1() {
 /// TIMER1 is setup so this happens once a second.
 #[avr_device::interrupt(attiny2313)]
 fn TIMER1_COMPA() {
-    static mut BUFFER: ring_buffer::RingBuffer<LONG_PERIOD> = ring_buffer::RingBuffer::new();
+    static mut BUFFER: RingBuffer<LONG_PERIOD> = RingBuffer::new();
 
     // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
@@ -194,7 +192,7 @@ fn TIMER1_COMPA() {
 }
 
 /// Flash LED and beep the piezo.
-fn check_event<P: PinOps>(led: &mut led::Led<Pin<Output, P>>, beeper: &mut TC0) {
+fn check_event<P: PinOps>(led: &mut Led<Pin<Output, P>>, beeper: &mut TC0) {
     let (event_flag, no_beep) = interrupt::free(|cs| {
         let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
         let event_flag = mem::replace(&mut shared.event_flag, false);
@@ -267,7 +265,7 @@ fn main() -> ! {
     let dp = hal::Peripherals::take().unwrap();
     let pins = hal::pins!(dp);
 
-    let mut serial = usart::Usart0::new(
+    let mut serial = Usart0::new(
         dp.USART,
         pins.pd0.into_pull_up_input(),
         pins.pd1.into_output(),
@@ -277,7 +275,7 @@ fn main() -> ! {
     P!(b"mightyohm.com Geiger Counter\r\n").fmt(&mut serial);
 
     // Set pins connected to LED and piezo as outputs.
-    let mut led = led::Led::new(pins.pb4.into_output());
+    let mut led = Led::new(pins.pb4.into_output());
     let mut _piezo = pins.pb2.into_output();
 
     // Configure PULSE output.

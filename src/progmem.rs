@@ -8,6 +8,7 @@ use crate::nano_fmt::{NanoDisplay, NanoWrite};
 #[derive(Clone, Copy)]
 pub struct PStr(pub *const u8);
 
+#[macro_export]
 macro_rules! P {
     ($s:literal) => {
         {
@@ -18,8 +19,6 @@ macro_rules! P {
         }
     };
 }
-
-pub(crate) use P;
 
 impl NanoDisplay for PStr {
     fn fmt<F: NanoWrite>(self, f: &mut F) {
