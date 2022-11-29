@@ -8,10 +8,10 @@ use core::{
     cell::UnsafeCell,
     mem::{self, MaybeUninit},
 };
-use geiger::P;
 use geiger::{led::Led, ring_buffer::RingBuffer, usart::Usart0};
 use nano_fmt::{NanoDisplay, NanoWrite};
 use panic_halt as _;
+use progmem::P;
 
 use attiny_hal as hal;
 use hal::{

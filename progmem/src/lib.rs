@@ -1,3 +1,6 @@
+#![no_std]
+#![feature(asm_experimental_arch)]
+
 #[cfg(target_arch = "avr")]
 use core::arch::asm;
 
@@ -15,7 +18,7 @@ macro_rules! P {
             const SIZE: usize = $s.len() + 1;
             #[cfg_attr(target_arch = "avr", link_section = ".progmem.data")]
             static S: [u8; SIZE] = *concat_bytes!($s, b"\0");
-            $crate::progmem::PStr(S.as_ptr() as *const u8)
+            $crate::PStr(S.as_ptr() as *const u8)
         }
     };
 }

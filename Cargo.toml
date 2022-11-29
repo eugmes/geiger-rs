@@ -4,12 +4,13 @@ name = "geiger"
 version = "0.1.0"
 
 [workspace]
-members = ["nano-fmt"]
+members = ["nano-fmt", "progmem"]
 
 [dependencies]
 embedded-hal = "0.2.3"
 nano-fmt = {path = "nano-fmt"}
 panic-halt = "0.2.0"
+progmem = {path = "progmem"}
 
 [dependencies.attiny-hal]
 features = ["attiny2313", "rt"]
