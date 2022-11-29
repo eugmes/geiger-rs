@@ -3,8 +3,12 @@ edition = "2021"
 name = "geiger"
 version = "0.1.0"
 
+[workspace]
+members = ["nano-fmt"]
+
 [dependencies]
 embedded-hal = "0.2.3"
+nano-fmt = {path = "nano-fmt"}
 panic-halt = "0.2.0"
 
 [dependencies.attiny-hal]

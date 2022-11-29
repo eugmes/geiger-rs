@@ -9,12 +9,8 @@ use core::{
     mem::{self, MaybeUninit},
 };
 use geiger::P;
-use geiger::{
-    led::Led,
-    nano_fmt::{NanoDisplay, NanoWrite},
-    ring_buffer::RingBuffer,
-    usart::Usart0,
-};
+use geiger::{led::Led, ring_buffer::RingBuffer, usart::Usart0};
+use nano_fmt::{NanoDisplay, NanoWrite};
 use panic_halt as _;
 
 use attiny_hal as hal;

@@ -1,6 +1,7 @@
 pub use avr_hal_generic::usart::Baudrate;
 
 use core::marker::PhantomData;
+use nano_fmt::NanoWrite;
 
 use attiny_hal::{
     clock::Clock,
@@ -8,7 +9,7 @@ use attiny_hal::{
 };
 use avr_hal_generic::port;
 
-use crate::nano_fmt;
+
 
 pub trait CharIO {
     type RX: PinOps;
@@ -81,7 +82,7 @@ where
     }
 }
 
-impl<USART: CharIO, RX, TX> nano_fmt::NanoWrite for Usart0<USART, RX, TX> {
+impl<USART: CharIO, RX, TX> NanoWrite for Usart0<USART, RX, TX> {
     fn write_byte(&mut self, b: u8) {
         self.p.raw_write(b);
     }

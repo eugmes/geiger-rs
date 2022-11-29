@@ -1,3 +1,5 @@
+#![no_std]
+
 /// Writer trait for resource constrained systems.
 pub trait NanoWrite {
     /// Write a byte to the writer.
@@ -13,8 +15,8 @@ pub trait NanoDisplay {
 /// Implement NanoDisplay for an unsigned type.
 macro_rules! display_unsigned {
     ($ty:ident) => {
-        impl $crate::nano_fmt::NanoDisplay for $ty {
-            fn fmt<F: $crate::nano_fmt::NanoWrite>(mut self, f: &mut F) {
+        impl $crate::NanoDisplay for $ty {
+            fn fmt<F: $crate::NanoWrite>(mut self, f: &mut F) {
                 const MAX_POW10: $ty = <$ty>::pow(10, $ty::MAX.ilog10() as u32);
 
                 let mut div = MAX_POW10;

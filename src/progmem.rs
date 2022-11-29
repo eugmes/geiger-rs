@@ -1,7 +1,7 @@
 #[cfg(target_arch = "avr")]
 use core::arch::asm;
 
-use crate::nano_fmt::{NanoDisplay, NanoWrite};
+use nano_fmt::{NanoDisplay, NanoWrite};
 
 /// C-style string stored in program memory.
 /// It is only suitable for formatted output.
