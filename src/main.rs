@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
+#![feature(asm_experimental_arch)]
+#![feature(concat_bytes)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
 use core::{
@@ -9,6 +11,7 @@ use core::{
 };
 use nano_fmt::{NanoDisplay, NanoWrite};
 use panic_halt as _;
+use progmem::P;
 
 use attiny_hal as hal;
 use hal::{
@@ -23,6 +26,7 @@ use hal::{
 
 mod led;
 mod nano_fmt;
+mod progmem;
 mod ring_buffer;
 mod usart;
 
@@ -92,6 +96,17 @@ enum LoggingMode {
     Slow,
     Fast,
     Instant,
+}
+
+impl NanoDisplay for LoggingMode {
+    fn fmt<F: NanoWrite>(self, f: &mut F) {
+        let s = match self {
+            Self::Slow => P!(b"SLOW"),
+            Self::Fast => P!(b"FAST"),
+            Self::Instant => P!(b"INST"),
+        };
+        s.fmt(f);
+    }
 }
 
 /// Pin change interrupt for pin INT0
@@ -237,10 +252,13 @@ where
 
     if let Some((cps, cpm, mode)) = report {
         // uwrite!(w, "CPS, {}, CPM, {}, {}\r\n", cps, cpm, mode).void_unwrap();
+        P!(b"CPS, ").fmt(w);
         cps.fmt(w);
+        P!(b", CPM, ").fmt(w);
         cpm.fmt(w);
-        //mode.fmt(w);
-        //"\r\n".fmt(w);
+        P!(b", ").fmt(w);
+        mode.fmt(w);
+        P!(b"\r\n").fmt(w);
     }
 }
 
@@ -256,7 +274,7 @@ fn main() -> ! {
         Baudrate::new(BAUDRATE),
     );
 
-    // uwrite!(serial, "mightyohm.com Geiger Counter\r\n").unwrap();
+    P!(b"mightyohm.com Geiger Counter\r\n").fmt(&mut serial);
 
     // Set pins connected to LED and piezo as outputs.
     let mut led = led::Led::new(pins.pb4.into_output());
