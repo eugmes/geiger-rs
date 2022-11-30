@@ -247,8 +247,11 @@ where
     }
 }
 
-#[hal::entry]
-fn main() -> ! {
+// Normally one would use `#[hal::entry]` here, but it generates an additional
+// trampoline function. Doing everything explicitly saves a few bytes of RAM and
+// flash.
+#[export_name = "main"]
+pub unsafe extern "C" fn main() -> ! {
     let dp = hal::Peripherals::take().unwrap();
     let pins = hal::pins!(dp);
 
