@@ -8,7 +8,7 @@ use syn::{
     parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    Expr, Ident, LitByteStr, LitStr, Token,
+    Expr, LitByteStr, LitStr, Token,
 };
 
 struct Input {
@@ -119,8 +119,6 @@ pub fn write(input: TokenStream) -> TokenStream {
         Ordering::Equal => {}
     }
 
-    let mut args = vec![];
-    let mut pats = vec![];
     let mut exprs = vec![];
     let mut i = 0;
     for piece in pieces {
@@ -128,27 +126,14 @@ pub fn write(input: TokenStream) -> TokenStream {
             let pstr = mk_pstr(&s);
             exprs.push(quote!(nano_fmt::NanoDisplay::fmt(#pstr, #formatter);));
         } else {
-            let pat = mk_ident(i);
             let arg = &input.args[i];
+            exprs.push(quote!(nano_fmt::NanoDisplay::fmt(#arg, #formatter);));
             i += 1;
-
-            args.push(quote!(#arg));
-            pats.push(quote!(#pat));
-
-            match piece {
-                Piece::Display => {
-                    exprs.push(quote!(nano_fmt::NanoDisplay::fmt(#pat, #formatter);));
-                }
-
-                Piece::Str(_) => unreachable!(),
-            }
         }
     }
 
-    quote!(match (#(#args),*) {
-        (#(#pats),*) => {
-            #(#exprs)*
-        }
+    quote!({
+        #(#exprs)*
     })
     .into()
 }
@@ -248,10 +233,6 @@ fn parse(mut literal: &str, span: Span) -> parse::Result<Vec<Piece>> {
     }
 
     Ok(pieces)
-}
-
-fn mk_ident(i: usize) -> Ident {
-    Ident::new(&format!("__{}", i), Span::call_site())
 }
 
 #[cfg(test)]
