@@ -10,7 +10,7 @@ use core::{
 use geiger::{led::Led, ring_buffer::RingBuffer, usart::Usart0};
 use nano_fmt::{NanoDisplay, NanoWrite};
 use panic_halt as _;
-use progmem::{write, P};
+use progmem::write;
 
 use attiny_hal as hal;
 use hal::{
@@ -93,12 +93,11 @@ enum LoggingMode {
 
 impl NanoDisplay for LoggingMode {
     fn fmt<F: NanoWrite>(self, f: &mut F) {
-        let s = match self {
-            Self::Slow => P!("SLOW"),
-            Self::Fast => P!("FAST"),
-            Self::Instant => P!("INST"),
+        match self {
+            Self::Slow => write!(f, "SLOW"),
+            Self::Fast => write!(f, "FAST"),
+            Self::Instant => write!(f, "INST"),
         };
-        s.fmt(f);
     }
 }
 

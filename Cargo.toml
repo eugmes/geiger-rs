@@ -33,7 +33,7 @@ panic = "abort"
 codegen-units = 1
 debug = true
 lto = true
-opt-level = "z"
+opt-level = "s"
 panic = "abort"
 
 [package.metadata.cargo_avrdude]
