@@ -98,7 +98,7 @@ pub fn write(input: TokenStream) -> TokenStream {
         Ordering::Less => {
             return parse::Error::new(
                 literal.span(),
-                &format!(
+                format!(
                     "format string requires {} arguments but {} {} supplied",
                     required_args,
                     supplied_args,
@@ -203,7 +203,7 @@ fn parse(mut literal: &str, span: Span) -> parse::Result<Vec<Piece>> {
                 const ESCAPED_BRACE: &str = "{";
 
                 let head = head.unwrap_or("");
-                if tail.starts_with(DISPLAY) {
+                if let Some(tail_tail) = tail.strip_prefix(DISPLAY) {
                     if buf.is_empty() {
                         if !head.is_empty() {
                             pieces.push(Piece::Str(unescape(head, span)?));
@@ -216,7 +216,7 @@ fn parse(mut literal: &str, span: Span) -> parse::Result<Vec<Piece>> {
 
                     pieces.push(Piece::Display);
 
-                    literal = &tail[DISPLAY.len()..];
+                    literal = tail_tail;
                 } else if let Some(tail_tail) = tail.strip_prefix(ESCAPED_BRACE) {
                     buf.push_str(&unescape(head, span)?);
                     buf.push('{');
