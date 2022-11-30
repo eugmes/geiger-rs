@@ -5,22 +5,17 @@
 use core::arch::asm;
 
 use nano_fmt::{NanoDisplay, NanoWrite};
+pub use nano_fmt_macro::{write, P};
 
 /// C-style string stored in program memory.
 /// It is only suitable for formatted output.
 #[derive(Clone, Copy)]
-pub struct PStr(pub *const u8);
+pub struct PStr(*const u8);
 
-#[macro_export]
-macro_rules! P {
-    ($s:literal) => {
-        {
-            const SIZE: usize = $s.len() + 1;
-            #[cfg_attr(target_arch = "avr", link_section = ".progmem.data")]
-            static S: [u8; SIZE] = *concat_bytes!($s, b"\0");
-            $crate::PStr(S.as_ptr() as *const u8)
-        }
-    };
+impl PStr {
+    pub unsafe fn new(ptr: *const u8) -> Self {
+        Self(ptr)
+    }
 }
 
 impl NanoDisplay for PStr {
@@ -32,7 +27,7 @@ impl NanoDisplay for PStr {
 
             unsafe {
                 #[cfg(target_arch = "avr")]
-                asm!{
+                asm! {
                     "lpm {b}, Z+",
                     b = out(reg) b,
                     inout("Z") p,

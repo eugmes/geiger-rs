@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
-#![feature(concat_bytes)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
 use core::{
@@ -11,7 +10,7 @@ use core::{
 use geiger::{led::Led, ring_buffer::RingBuffer, usart::Usart0};
 use nano_fmt::{NanoDisplay, NanoWrite};
 use panic_halt as _;
-use progmem::P;
+use progmem::{write, P};
 
 use attiny_hal as hal;
 use hal::{
@@ -95,9 +94,9 @@ enum LoggingMode {
 impl NanoDisplay for LoggingMode {
     fn fmt<F: NanoWrite>(self, f: &mut F) {
         let s = match self {
-            Self::Slow => P!(b"SLOW"),
-            Self::Fast => P!(b"FAST"),
-            Self::Instant => P!(b"INST"),
+            Self::Slow => P!("SLOW"),
+            Self::Fast => P!("FAST"),
+            Self::Instant => P!("INST"),
         };
         s.fmt(f);
     }
@@ -245,14 +244,7 @@ where
     });
 
     if let Some((cps, cpm, mode)) = report {
-        // uwrite!(w, "CPS, {}, CPM, {}, {}\r\n", cps, cpm, mode).void_unwrap();
-        P!(b"CPS, ").fmt(w);
-        cps.fmt(w);
-        P!(b", CPM, ").fmt(w);
-        cpm.fmt(w);
-        P!(b", ").fmt(w);
-        mode.fmt(w);
-        P!(b"\r\n").fmt(w);
+        write!(w, "CPS, {}, CPM, {}, {}, \r\n", cps, cpm, mode);
     }
 }
 
@@ -268,7 +260,10 @@ fn main() -> ! {
         Baudrate::new(BAUDRATE),
     );
 
-    P!(b"mightyohm.com Geiger Counter\r\n").fmt(&mut serial);
+    write!(
+        &mut serial,
+        "mightyohm.com Geiger Counter 1.00\r\nhttp://mightyohm.com/geiger\r\n"
+    );
 
     // Set pins connected to LED and piezo as outputs.
     let mut led = Led::new(pins.pb4.into_output());

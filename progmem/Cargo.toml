@@ -5,3 +5,4 @@ version = "0.1.0"
 
 [dependencies]
 nano-fmt = {path = "../nano-fmt"}
+nano-fmt-macro = {path = "../nano-fmt-macro"}
