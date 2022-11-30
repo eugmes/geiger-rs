@@ -31,6 +31,9 @@ impl NanoDisplay for PStr {
                     "lpm {b}, Z+",
                     b = out(reg) b,
                     inout("Z") p,
+                    // Technically, this does access program memory, but it should
+                    // not in any way influence the program.
+                    options(pure, nomem, preserves_flags, nostack),
                 };
                 #[cfg(not(target_arch = "avr"))]
                 {
