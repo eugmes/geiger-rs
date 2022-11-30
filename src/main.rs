@@ -251,8 +251,11 @@ where
 // trampoline function. Doing everything explicitly saves a few bytes of RAM and
 // flash.
 #[export_name = "main"]
-pub unsafe extern "C" fn main() -> ! {
-    let dp = hal::Peripherals::take().unwrap();
+pub extern "C" fn main() -> ! {
+    let dp = unsafe {
+        // SAFETY: This is the only place where we get the peripherals.
+        hal::Peripherals::steal()
+    };
     let pins = hal::pins!(dp);
 
     let mut serial = Usart0::new(
