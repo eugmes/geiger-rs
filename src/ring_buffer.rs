@@ -1,14 +1,12 @@
 use core::mem;
 
 /// Fixed size ring buffer.
-pub struct RingBuffer<const SIZE: usize>
-{
+pub struct RingBuffer<const SIZE: usize> {
     samples: [u8; SIZE],
     index: u8,
 }
 
-impl<const SIZE: usize> RingBuffer<SIZE>
-{
+impl<const SIZE: usize> RingBuffer<SIZE> {
     /// Create a new buffer filled with zeroes.
     pub const fn new() -> Self {
         Self {
@@ -41,15 +39,13 @@ impl<const SIZE: usize> RingBuffer<SIZE>
 }
 
 /// Iterator over ring buffer data.
-pub struct Iter<'a, const SIZE: usize>
-{
+pub struct Iter<'a, const SIZE: usize> {
     samples: &'a [u8; SIZE],
     index: u8,
     count: u8,
 }
 
-impl<const SIZE: usize> Iterator for Iter<'_, SIZE>
-{
+impl<const SIZE: usize> Iterator for Iter<'_, SIZE> {
     type Item = u8;
 
     fn next(&mut self) -> Option<Self::Item> {
