@@ -4,5 +4,6 @@ name = "progmem"
 version = "0.1.0"
 
 [dependencies]
+cfg-if = "1.0.0"
 nano-fmt = {path = "../nano-fmt"}
 nano-fmt-macro = {path = "../nano-fmt-macro"}

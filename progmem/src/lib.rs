@@ -4,6 +4,7 @@
 #[cfg(target_arch = "avr")]
 use core::arch::asm;
 
+use cfg_if::cfg_if;
 use nano_fmt::{NanoDisplay, NanoWrite};
 pub use nano_fmt_macro::{write, P};
 
@@ -26,19 +27,20 @@ impl NanoDisplay for PStr {
             let b: u8;
 
             unsafe {
-                #[cfg(target_arch = "avr")]
-                asm! {
-                    "lpm {b}, Z+",
-                    b = out(reg) b,
-                    inout("Z") p,
-                    // Technically, this does access program memory, but it should
-                    // not in any way influence the program.
-                    options(pure, nomem, preserves_flags, nostack),
-                };
-                #[cfg(not(target_arch = "avr"))]
-                {
-                    b = *p;
-                    p = p.add(1);
+                cfg_if! {
+                    if #[cfg(target_arch = "avr")] {
+                        asm! {
+                            "lpm {b}, Z+",
+                            b = out(reg) b,
+                            inout("Z") p,
+                            // Technically, this does access program memory, but it should
+                            // not in any way influence the program.
+                            options(pure, nomem, preserves_flags, nostack),
+                        };
+                    } else {
+                        b = *p;
+                        p = p.add(1);
+                    }
                 }
             }
 
