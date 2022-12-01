@@ -31,7 +31,7 @@ panic = "abort"
 
 [profile.release]
 codegen-units = 1
-debug = true
+debug = 0
 lto = true
 opt-level = "s"
 panic = "abort"
