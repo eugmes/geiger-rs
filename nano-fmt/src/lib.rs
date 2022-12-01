@@ -12,7 +12,7 @@ pub trait NanoDisplay {
     fn fmt<F: NanoWrite>(self, f: &mut F);
 }
 
-/// Implement NanoDisplay for an unsigned type.
+/// Implement `NanoDisplay` for an unsigned type.
 macro_rules! display_unsigned {
     ($ty:ident) => {
         impl $crate::NanoDisplay for $ty {

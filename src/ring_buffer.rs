@@ -8,6 +8,7 @@ pub struct RingBuffer<const SIZE: usize> {
 
 impl<const SIZE: usize> RingBuffer<SIZE> {
     /// Create a new buffer filled with zeroes.
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             samples: [0; SIZE],
@@ -33,6 +34,7 @@ impl<const SIZE: usize> RingBuffer<SIZE> {
     }
 
     /// Return iterator over `count` values in the buffer.
+    #[must_use]
     pub fn iter(&self, count: u8) -> Iter<SIZE> {
         Iter {
             samples: &self.samples,

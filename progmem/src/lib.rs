@@ -15,6 +15,13 @@ pub use nano_fmt_macro::{write, P};
 pub struct PStr(*const u8);
 
 impl PStr {
+    /// Construct a new instance of a string.
+    ///
+    /// # Safety
+    /// `ptr` should point to the beginning of a nul-terminated string.
+    /// The string should stay constant during program execution.
+    /// On AVR, the string should reside in program memory.
+    #[must_use]
     pub unsafe fn new(ptr: *const u8) -> Self {
         Self(ptr)
     }
@@ -61,7 +68,7 @@ impl Iterator for Iter {
 
 impl NanoDisplay for PStr {
     fn fmt<F: NanoWrite>(self, f: &mut F) {
-        for b in self.into_iter() {
+        for b in self {
             f.write_byte(b.get());
         }
     }

@@ -248,8 +248,8 @@ where
         let count = cps.try_into().unwrap_or(u8::MAX);
         let oldest_count = smoother.buffer.put(count);
 
-        smoother.slow_cpm -= oldest_count as u16;
-        smoother.slow_cpm += count as u16;
+        smoother.slow_cpm -= u16::from(oldest_count);
+        smoother.slow_cpm += u16::from(count);
 
         let (cpm, mode_str) = {
             if cps > u16::from(u8::MAX) {
@@ -259,10 +259,10 @@ where
             } else {
                 let mut fast_cpm = 0u16;
                 for val in smoother.buffer.iter(SHORT_PERIOD) {
-                    fast_cpm += val as u16;
+                    fast_cpm += u16::from(val);
                 }
                 const FAST_CPM_SCALE: u16 = (LONG_PERIOD as u8 / SHORT_PERIOD) as u16;
-                fast_cpm = fast_cpm * FAST_CPM_SCALE;
+                fast_cpm *= FAST_CPM_SCALE;
                 (u32::from(fast_cpm), P!("FAST"))
             }
         };
