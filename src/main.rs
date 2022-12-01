@@ -324,6 +324,9 @@ pub extern "C" fn main() -> ! {
         SHARED_EXINT.write(exint);
     }
 
+    // Set sleep mode to IDLE and enable sleep.
+    dp.CPU.mcucr.modify(|_, w| w.sm().idle().se().set_bit());
+
     // Enable interrupts.
     unsafe {
         // SAFETY: Not inside a critical section and any non-atomic operations have been completed
@@ -332,12 +335,8 @@ pub extern "C" fn main() -> ! {
     }
 
     loop {
-        // Set sleep mode to IDLE and enable sleep.
-        dp.CPU.mcucr.modify(|_, w| w.sm().idle().se().set_bit());
         // Go to sleep until next interrupt.
         avr_device::asm::sleep();
-        // Disable sleep so we don't accidentally go to  sleep.
-        dp.CPU.mcucr.modify(|_, w| w.se().clear_bit());
 
         check_event(&mut led, &mut beeper);
         send_report(&mut serial);
