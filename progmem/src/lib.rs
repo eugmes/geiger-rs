@@ -3,6 +3,7 @@
 
 #[cfg(target_arch = "avr")]
 use core::arch::asm;
+use core::num::NonZeroU8;
 
 use cfg_if::cfg_if;
 use nano_fmt::{NanoDisplay, NanoWrite};
@@ -19,36 +20,49 @@ impl PStr {
     }
 }
 
-impl NanoDisplay for PStr {
-    fn fmt<F: NanoWrite>(self, f: &mut F) {
-        let mut p = self.0;
+impl IntoIterator for PStr {
+    type Item = NonZeroU8;
 
-        loop {
-            let b: u8;
+    type IntoIter = Iter;
 
-            unsafe {
-                cfg_if! {
-                    if #[cfg(target_arch = "avr")] {
-                        asm! {
-                            "lpm {b}, Z+",
-                            b = out(reg) b,
-                            inout("Z") p,
-                            // Technically, this does access program memory, but it should
-                            // not in any way influence the program.
-                            options(pure, nomem, preserves_flags, nostack),
-                        };
-                    } else {
-                        b = *p;
-                        p = p.add(1);
-                    }
+    fn into_iter(self) -> Self::IntoIter {
+        Iter(self.0)
+    }
+}
+
+pub struct Iter(*const u8);
+
+impl Iterator for Iter {
+    type Item = NonZeroU8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let b: u8;
+
+        unsafe {
+            cfg_if! {
+                if #[cfg(target_arch = "avr")] {
+                    asm! {
+                        "lpm {b}, Z+",
+                        b = out(reg) b,
+                        inout("Z") self.0,
+                        // Technically, this does access program memory, but it should
+                        // not in any way influence the program.
+                        options(pure, nomem, preserves_flags, nostack),
+                    };
+                } else {
+                    b = *p;
+                    p = p.add(1);
                 }
             }
+        }
+        NonZeroU8::new(b)
+    }
+}
 
-            if b == 0 {
-                break;
-            }
-
-            f.write_byte(b);
+impl NanoDisplay for PStr {
+    fn fmt<F: NanoWrite>(self, f: &mut F) {
+        for b in self.into_iter() {
+            f.write_byte(b.get());
         }
     }
 }
