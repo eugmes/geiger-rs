@@ -8,9 +8,9 @@ use core::{
     mem::{self, MaybeUninit},
 };
 use geiger::{led::Led, ring_buffer::RingBuffer, usart::Usart0};
-use nano_fmt::{NanoDisplay, NanoWrite};
+use nano_fmt::NanoWrite;
 use panic_halt as _;
-use progmem::write;
+use progmem::{P, write};
 
 use attiny_hal as hal;
 use hal::{
@@ -45,10 +45,6 @@ const THRESHOLD: u16 = 1000;
 struct SharedData {
     /// Number of GM events that has occurred.
     count: u16,
-    /// GM counts per minute in slow mode.
-    slow_cpm: u16,
-    /// GM counts per minute in fast mode.
-    fast_cpm: u16,
     /// GM counts per second, updated once a second.
     cps: u16,
     /// Flag used to mute beeper.
@@ -63,8 +59,6 @@ impl SharedData {
     pub const fn new() -> Self {
         Self {
             count: 0,
-            slow_cpm: 0,
-            fast_cpm: 0,
             cps: 0,
             no_beep: false,
             event_flag: false,
@@ -75,28 +69,27 @@ impl SharedData {
 
 static SHARED_DATA: Mutex<UnsafeCell<SharedData>> = Mutex::new(UnsafeCell::new(SharedData::new()));
 
+struct Smoother {
+    buffer: RingBuffer<LONG_PERIOD>,
+    /// GM counts per minute in slow mode.
+    slow_cpm: u16,
+}
+
+impl Smoother {
+    pub const fn new() -> Self {
+        Self {
+            buffer: RingBuffer::new(),
+            slow_cpm: 0,
+        }
+    }
+}
+
+static mut SMOOTHER: Smoother = Smoother::new();
+
 // TODO: Find a way to get rid of configs
 static mut PULSE: MaybeUninit<Pin<Output, PD6>> = MaybeUninit::uninit();
 static mut BUTTON: MaybeUninit<Pin<Input<PullUp>, PD3>> = MaybeUninit::uninit();
 static mut SHARED_EXINT: MaybeUninit<EXINT> = MaybeUninit::uninit();
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-enum LoggingMode {
-    Slow,
-    Fast,
-    Instant,
-}
-
-impl NanoDisplay for LoggingMode {
-    fn fmt<F: NanoWrite>(self, f: &mut F) {
-        match self {
-            Self::Slow => write!(f, "SLOW"),
-            Self::Fast => write!(f, "FAST"),
-            Self::Instant => write!(f, "INST"),
-        };
-    }
-}
 
 /// Pin change interrupt for pin INT0
 /// This interrupt is called on the falling edge of a GM pulse.
@@ -151,31 +144,13 @@ fn INT1() {
 /// TIMER1 is setup so this happens once a second.
 #[avr_device::interrupt(attiny2313)]
 fn TIMER1_COMPA() {
-    static mut BUFFER: RingBuffer<LONG_PERIOD> = RingBuffer::new();
-
     // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
 
     let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
     shared.tick = true;
 
-    let count = mem::replace(&mut shared.count, 0);
-
-    shared.cps = count;
-
-    let count = count.try_into().unwrap_or(u8::MAX);
-    let oldest_count = BUFFER.put(count);
-
-    shared.slow_cpm -= oldest_count as u16;
-    shared.slow_cpm += count as u16;
-
-    let mut fast_cpm = 0u16;
-    for val in BUFFER.iter(SHORT_PERIOD) {
-        fast_cpm += val as u16;
-    }
-
-    const FAST_CPM_SCALE: u16 = (LONG_PERIOD as u8 / SHORT_PERIOD) as u16;
-    shared.fast_cpm = fast_cpm * FAST_CPM_SCALE;
+    shared.cps = mem::replace(&mut shared.count, 0);
 }
 
 /// Flash LED and beep the piezo.
@@ -211,42 +186,46 @@ fn check_event<P: PinOps>(led: &mut Led<Pin<Output, P>>, beeper: &mut TC0) {
 }
 
 /// Log data over the serial port.
-fn send_report<W>(w: &mut W)
+fn send_report<W>(w: &mut W, smoother: &mut Smoother)
 where
     W: NanoWrite,
 {
     let report = interrupt::free(|cs| {
         let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-        let tick = mem::replace(&mut shared.tick, false);
 
-        if tick {
-            let (cpm, mode) = if shared.cps > u16::from(u8::MAX) {
-                // CPM will have to be multiplied after leaving the critical section.
-                // This is to make it faster and consume less registers.
-                (shared.cps, LoggingMode::Instant)
-            } else if shared.fast_cpm > THRESHOLD {
-                (shared.fast_cpm, LoggingMode::Fast)
-            } else {
-                (shared.slow_cpm, LoggingMode::Slow)
-            };
-
-            Some((shared.cps, cpm, mode))
+        if mem::replace(&mut shared.tick, false) {
+            Some(shared.cps)
         } else {
             None
         }
     });
 
-    if let Some((cps, cpm, mode)) = report {
+    if let Some(cps) = report {
         write!(w, "CPS, {}, CPM, ", cps);
 
-        // NOTE: attempting to move this calculation above and merging calls
-        // to write! increases memory and register consumption.
-        let cpm = match mode {
-            LoggingMode::Instant => cpm as u32 * 60,
-            _ => cpm as u32,
+        let count = cps.try_into().unwrap_or(u8::MAX);
+        let oldest_count = smoother.buffer.put(count);
+
+        smoother.slow_cpm -= oldest_count as u16;
+        smoother.slow_cpm += count as u16;
+
+        let (cpm, mode_str) = {
+            if cps > u16::from(u8::MAX) {
+                (u32::from(cps) * 60, P!("INST"))
+            } else if smoother.slow_cpm <= THRESHOLD {
+                (u32::from(smoother.slow_cpm), P!("SLOW"))
+            } else {
+                let mut fast_cpm = 0u16;
+                for val in smoother.buffer.iter(SHORT_PERIOD) {
+                    fast_cpm += val as u16;
+                }
+                const FAST_CPM_SCALE: u16 = (LONG_PERIOD as u8 / SHORT_PERIOD) as u16;
+                fast_cpm = fast_cpm * FAST_CPM_SCALE;
+                (u32::from(fast_cpm), P!("FAST"))
+            }
         };
 
-        write!(w, "{}, {}, \r\n", cpm, mode);
+        write!(w, "{}, {}\r\n", cpm, mode_str);
     }
 }
 
@@ -339,7 +318,7 @@ pub extern "C" fn main() -> ! {
         avr_device::asm::sleep();
 
         check_event(&mut led, &mut beeper);
-        send_report(&mut serial);
+        send_report(&mut serial, unsafe { &mut SMOOTHER });
         check_event(&mut led, &mut beeper);
     }
 }
