@@ -229,11 +229,13 @@ where
         if tick {
             let (cpm, mode) = if shared.overflow {
                 shared.overflow = false;
-                (shared.cps as u32 * 60, LoggingMode::Instant)
+                // CPM will have to be multiplied after leaving the critical section.
+                // This is to make it faster and consume less registers.
+                (shared.cps, LoggingMode::Instant)
             } else if shared.fast_cpm > THRESHOLD {
-                (shared.fast_cpm as u32, LoggingMode::Fast)
+                (shared.fast_cpm, LoggingMode::Fast)
             } else {
-                (shared.slow_cpm as u32, LoggingMode::Slow)
+                (shared.slow_cpm, LoggingMode::Slow)
             };
 
             Some((shared.cps, cpm, mode))
@@ -243,7 +245,16 @@ where
     });
 
     if let Some((cps, cpm, mode)) = report {
-        write!(w, "CPS, {}, CPM, {}, {}, \r\n", cps, cpm, mode);
+        write!(w, "CPS, {}, CPM, ", cps);
+
+        // NOTE: attempting to move this calculation above and merging calls
+        // to write! increases memory and register consumption.
+        let cpm = match mode {
+            LoggingMode::Instant => cpm as u32 * 60,
+            _ => cpm as u32,
+        };
+
+        write!(w, "{}, {}, \r\n", cpm, mode);
     }
 }
 
