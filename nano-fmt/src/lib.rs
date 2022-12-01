@@ -23,7 +23,7 @@ macro_rules! display_unsigned {
                 let mut print = false;
 
                 while div > 0 {
-                    let dig = self / div;
+                    let dig = (self / div) as u8;
                     self %= div;
                     div /= 10;
 
@@ -32,7 +32,7 @@ macro_rules! display_unsigned {
                     }
 
                     if print || (div == 0) {
-                        let b = 0x30 + dig as u8;
+                        let b = 0x30 + dig;
                         f.write_byte(b);
                     }
                 }
