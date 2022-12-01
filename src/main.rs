@@ -9,7 +9,7 @@ use core::{
     cell::UnsafeCell,
     mem::{self, MaybeUninit},
 };
-use geiger::{led::Led, ring_buffer::RingBuffer, usart::Usart0};
+use geiger::{fixed::Fixed2, led::Led, ring_buffer::RingBuffer, usart::Usart0};
 use nano_fmt::NanoWrite;
 use panic_halt as _;
 use progmem::{write, P};
@@ -42,6 +42,9 @@ const LONG_PERIOD: usize = 60;
 
 /// CPM threshold for fast averaging mode.
 const THRESHOLD: u16 = 1000;
+
+// CPM to uSv/hr conversion factor (x10,000 to avoid float).
+const SCALE_FACTOR: u32 = 57u32;
 
 /// Flags for events that can wakeup the main loop.
 struct EventFlags(u8);
@@ -267,7 +270,12 @@ where
             }
         };
 
-        write!(w, "{}, {}\r\n", cpm, mode_str);
+        write!(w, "{}, uSv/hr, ", cpm);
+
+        let usv_scaled = cpm * SCALE_FACTOR / 100;
+        let usv = Fixed2::from_bits(usv_scaled);
+
+        write!(w, "{}, {}\r\n", usv, mode_str);
     }
 }
 
