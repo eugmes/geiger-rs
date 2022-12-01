@@ -53,8 +53,6 @@ struct SharedData {
     cps: u16,
     /// Flag used to mute beeper.
     no_beep: bool,
-    /// Overflow flag.
-    overflow: bool,
     /// Flag for ISR to tell main loop if a GM event has occurred.
     event_flag: bool,
     /// Flag that tells main loop when 1 second has passed.
@@ -69,7 +67,6 @@ impl SharedData {
             fast_cpm: 0,
             cps: 0,
             no_beep: false,
-            overflow: false,
             event_flag: false,
             tick: false,
         }
@@ -166,11 +163,7 @@ fn TIMER1_COMPA() {
 
     shared.cps = count;
 
-    let count = count.try_into().unwrap_or_else(|_| {
-        shared.overflow = true;
-        u8::MAX
-    });
-
+    let count = count.try_into().unwrap_or(u8::MAX);
     let oldest_count = BUFFER.put(count);
 
     shared.slow_cpm -= oldest_count as u16;
@@ -227,8 +220,7 @@ where
         let tick = mem::replace(&mut shared.tick, false);
 
         if tick {
-            let (cpm, mode) = if shared.overflow {
-                shared.overflow = false;
+            let (cpm, mode) = if shared.cps > u16::from(u8::MAX) {
                 // CPM will have to be multiplied after leaving the critical section.
                 // This is to make it faster and consume less registers.
                 (shared.cps, LoggingMode::Instant)
