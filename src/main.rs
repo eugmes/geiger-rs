@@ -1,16 +1,18 @@
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
+#![feature(asm_experimental_arch)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
 use core::{
+    arch::asm,
     cell::UnsafeCell,
     mem::{self, MaybeUninit},
 };
 use geiger::{led::Led, ring_buffer::RingBuffer, usart::Usart0};
 use nano_fmt::NanoWrite;
 use panic_halt as _;
-use progmem::{P, write};
+use progmem::{write, P};
 
 use attiny_hal as hal;
 use hal::{
@@ -41,6 +43,50 @@ const LONG_PERIOD: usize = 60;
 /// CPM threshold for fast averaging mode.
 const THRESHOLD: u16 = 1000;
 
+/// Flags for events that can wakeup the main loop.
+struct EventFlags(u8);
+
+impl EventFlags {
+    /// Create a new instance of flags with all flags reset.
+    pub const fn new() -> Self {
+        Self(0)
+    }
+
+    /// Flag for ISR to tell main loop if a GM event has occurred.
+    const GM_EVENT: u8 = 0x01;
+    /// Flag that tells main loop when 1 second has passed.
+    const TICK_EVENT: u8 = 0x02;
+
+    /// Indicate that a GM event has occured.
+    pub fn set_gm_event(&mut self) {
+        self.0 |= Self::GM_EVENT;
+    }
+
+    /// Indicate that a tick event has occured.
+    pub fn set_tick_event(&mut self) {
+        self.0 |= Self::TICK_EVENT;
+    }
+
+    /// Returns `true` if any of the events has occured.
+    pub fn has_any_event(&self) -> bool {
+        self.0 != 0
+    }
+
+    /// Returns and resets GM event status.
+    pub fn take_gm_event(&mut self) -> bool {
+        let e = self.0 & Self::GM_EVENT != 0;
+        self.0 &= !Self::GM_EVENT;
+        e
+    }
+
+    /// Returns and resets tick event status.
+    pub fn take_tick_event(&mut self) -> bool {
+        let e = self.0 & Self::TICK_EVENT != 0;
+        self.0 &= !Self::TICK_EVENT;
+        e
+    }
+}
+
 /// Data that is shared by multiple tasks.
 struct SharedData {
     /// Number of GM events that has occurred.
@@ -49,10 +95,8 @@ struct SharedData {
     cps: u16,
     /// Flag used to mute beeper.
     no_beep: bool,
-    /// Flag for ISR to tell main loop if a GM event has occurred.
-    event_flag: bool,
-    /// Flag that tells main loop when 1 second has passed.
-    tick: bool,
+    /// Flags for tick and GM events.
+    event_flags: EventFlags,
 }
 
 impl SharedData {
@@ -61,8 +105,7 @@ impl SharedData {
             count: 0,
             cps: 0,
             no_beep: false,
-            event_flag: false,
-            tick: false,
+            event_flags: EventFlags::new(),
         }
     }
 }
@@ -102,7 +145,7 @@ fn INT0() {
     shared.count = shared.count.saturating_add(1);
 
     // Tell main program loop that a GM pulse has occurred.
-    shared.event_flag = true;
+    shared.event_flags.set_gm_event();
 
     // Send a pulse to the PULSE connector.
     // A delay of 100us limits the max CPS to about 8000.
@@ -148,8 +191,7 @@ fn TIMER1_COMPA() {
     let cs = unsafe { CriticalSection::new() };
 
     let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-    shared.tick = true;
-
+    shared.event_flags.set_tick_event();
     shared.cps = mem::replace(&mut shared.count, 0);
 }
 
@@ -157,7 +199,7 @@ fn TIMER1_COMPA() {
 fn check_event<P: PinOps>(led: &mut Led<Pin<Output, P>>, beeper: &mut TC0) {
     let (event_flag, no_beep) = interrupt::free(|cs| {
         let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-        let event_flag = mem::replace(&mut shared.event_flag, false);
+        let event_flag = shared.event_flags.take_gm_event();
         (event_flag, shared.no_beep)
     });
 
@@ -193,7 +235,7 @@ where
     let report = interrupt::free(|cs| {
         let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
 
-        if mem::replace(&mut shared.tick, false) {
+        if shared.event_flags.take_tick_event() {
             Some(shared.cps)
         } else {
             None
@@ -226,6 +268,33 @@ where
         };
 
         write!(w, "{}, {}\r\n", cpm, mode_str);
+    }
+}
+
+/// Wait for an event to occur.
+/// Interrupts are enabled when this function returns.
+fn wait_for_event() {
+    let cs = unsafe {
+        avr_device::interrupt::disable();
+        CriticalSection::new()
+    };
+
+    let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
+
+    if !shared.event_flags.has_any_event() {
+        // Go to sleep until next interrupt.
+        // This has to be inline assembly so that the compiler does not insert
+        // additional instructions in between.
+        unsafe {
+            asm! {
+                "sei",
+                "sleep",
+            }
+        }
+    }
+
+    unsafe {
+        avr_device::interrupt::enable();
     }
 }
 
@@ -306,19 +375,10 @@ pub extern "C" fn main() -> ! {
     // Set sleep mode to IDLE and enable sleep.
     dp.CPU.mcucr.modify(|_, w| w.sm().idle().se().set_bit());
 
-    // Enable interrupts.
-    unsafe {
-        // SAFETY: Not inside a critical section and any non-atomic operations have been completed
-        // at this point.
-        avr_device::interrupt::enable();
-    }
-
     loop {
-        // Go to sleep until next interrupt.
-        avr_device::asm::sleep();
+        wait_for_event();
 
         check_event(&mut led, &mut beeper);
         send_report(&mut serial, unsafe { &mut SMOOTHER });
-        check_event(&mut led, &mut beeper);
     }
 }
