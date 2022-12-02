@@ -2,21 +2,18 @@
 #![no_main]
 #![feature(abi_avr_interrupt)]
 #![feature(asm_experimental_arch)]
+#![feature(cell_update)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
-use core::{
-    arch::asm,
-    cell::UnsafeCell,
-    mem::{self, MaybeUninit},
-};
-use geiger::{fixed::Fixed2, led::Led, ring_buffer::RingBuffer, usart::Usart0};
+use core::{arch::asm, cell::Cell, mem::MaybeUninit};
+use geiger::{beeper::Beeper, fixed::Fixed2, led::Led, ring_buffer::RingBuffer, usart::Usart0};
 use nano_fmt::NanoWrite;
 use panic_halt as _;
 use progmem::{write, P};
 
 use attiny_hal as hal;
 use hal::{
-    pac::{EXINT, TC0},
+    pac::EXINT,
     port::Pin,
     port::{
         mode::{Input, Output, PullUp},
@@ -47,12 +44,12 @@ const THRESHOLD: u16 = 1000;
 const SCALE_FACTOR: u32 = 57u32;
 
 /// Flags for events that can wakeup the main loop.
-struct EventFlags(u8);
+struct EventFlags(Cell<u8>);
 
 impl EventFlags {
     /// Create a new instance of flags with all flags reset.
     pub const fn new() -> Self {
-        Self(0)
+        Self(Cell::new(0))
     }
 
     /// Flag for ISR to tell main loop if a GM event has occurred.
@@ -61,43 +58,43 @@ impl EventFlags {
     const TICK_EVENT: u8 = 0x02;
 
     /// Indicate that a GM event has occured.
-    pub fn set_gm_event(&mut self) {
-        self.0 |= Self::GM_EVENT;
+    pub fn set_gm_event(&self) {
+        self.0.update(|f| f | Self::GM_EVENT);
     }
 
     /// Indicate that a tick event has occured.
-    pub fn set_tick_event(&mut self) {
-        self.0 |= Self::TICK_EVENT;
+    pub fn set_tick_event(&self) {
+        self.0.update(|f| f | Self::TICK_EVENT);
     }
 
     /// Returns `true` if any of the events has occured.
     pub fn has_any_event(&self) -> bool {
-        self.0 != 0
+        self.0.get() != 0
     }
 
     /// Returns and resets GM event status.
-    pub fn take_gm_event(&mut self) -> bool {
-        let e = self.0 & Self::GM_EVENT != 0;
-        self.0 &= !Self::GM_EVENT;
-        e
+    pub fn take_gm_event(&self) -> bool {
+        let val = self.0.get();
+        self.0.set(val & !Self::GM_EVENT);
+        val & Self::GM_EVENT != 0
     }
 
     /// Returns and resets tick event status.
-    pub fn take_tick_event(&mut self) -> bool {
-        let e = self.0 & Self::TICK_EVENT != 0;
-        self.0 &= !Self::TICK_EVENT;
-        e
+    pub fn take_tick_event(&self) -> bool {
+        let val = self.0.get();
+        self.0.set(val & !Self::TICK_EVENT);
+        val & Self::TICK_EVENT != 0
     }
 }
 
 /// Data that is shared by multiple tasks.
 struct SharedData {
     /// Number of GM events that has occurred.
-    count: u16,
+    count: Cell<u16>,
     /// GM counts per second, updated once a second.
-    cps: u16,
+    cps: Cell<u16>,
     /// Flag used to mute beeper.
-    no_beep: bool,
+    no_beep: Cell<bool>,
     /// Flags for tick and GM events.
     event_flags: EventFlags,
 }
@@ -105,15 +102,15 @@ struct SharedData {
 impl SharedData {
     pub const fn new() -> Self {
         Self {
-            count: 0,
-            cps: 0,
-            no_beep: false,
+            count: Cell::new(0),
+            cps: Cell::new(0),
+            no_beep: Cell::new(false),
             event_flags: EventFlags::new(),
         }
     }
 }
 
-static SHARED_DATA: Mutex<UnsafeCell<SharedData>> = Mutex::new(UnsafeCell::new(SharedData::new()));
+static SHARED_DATA: Mutex<SharedData> = Mutex::new(SharedData::new());
 
 struct Smoother {
     buffer: RingBuffer<LONG_PERIOD>,
@@ -144,8 +141,8 @@ fn INT0() {
     // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
 
-    let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-    shared.count = shared.count.saturating_add(1);
+    let shared = SHARED_DATA.borrow(cs);
+    shared.count.update(|count| count.saturating_add(1));
 
     // Tell main program loop that a GM pulse has occurred.
     shared.event_flags.set_gm_event();
@@ -176,8 +173,8 @@ fn INT1() {
     // Is button still pressed?
     let button = unsafe { BUTTON.assume_init_ref() };
     if button.is_low() {
-        let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
-        shared.no_beep = !shared.no_beep;
+        let shared = SHARED_DATA.borrow(cs);
+        shared.no_beep.update(|flag| !flag);
     }
 
     // Clear interrupt flag to avoid executing ISR again due to switch bounce
@@ -193,40 +190,32 @@ fn TIMER1_COMPA() {
     // SAFETY: We are inside a blocking interrupt.
     let cs = unsafe { CriticalSection::new() };
 
-    let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
+    let shared = SHARED_DATA.borrow(cs);
     shared.event_flags.set_tick_event();
-    shared.cps = mem::replace(&mut shared.count, 0);
+    let cps = shared.count.replace(0);
+    shared.cps.set(cps);
 }
 
 /// Flash LED and beep the piezo.
-fn check_event<P: PinOps>(led: &mut Led<Pin<Output, P>>, beeper: &mut TC0) {
+fn check_event<P: PinOps>(led: &mut Led<Pin<Output, P>>, beeper: &mut Beeper) {
     let (event_flag, no_beep) = interrupt::free(|cs| {
-        let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
+        let shared = SHARED_DATA.borrow(cs);
         let event_flag = shared.event_flags.take_gm_event();
-        (event_flag, shared.no_beep)
+        (event_flag, shared.no_beep.get())
     });
 
     if event_flag {
         led.turn_on();
 
         if !no_beep {
-            // enable OCR0A output on pin PB2
-            beeper.tccr0a.modify(|_, w| w.com0a().match_toggle());
-            // Set prescaler to clk/8 (1Mhz) or 1us/count.
-            beeper.tccr0b.modify(|_, w| w.cs0().prescale_8());
-            // 160 = toggle OCR0A every 160ms, period = 320us, freq= 3.125kHz
-            beeper.ocr0a.write(|w| unsafe { w.bits(160) });
+            beeper.turn_on()
         }
 
         // 10ms delay gives a nice short flash and 'click' on the piezo.
         Delay::new().delay_ms(10u8);
 
         led.turn_off();
-
-        // Disable TIMER0 since we're no longer using it.
-        beeper.tccr0b.reset();
-        // Disconnect OCR0A from TIMER0, this avoids occasional HVPS whine after beep.
-        beeper.tccr0a.modify(|_, w| w.com0a().disconnected());
+        beeper.turn_off();
     }
 }
 
@@ -236,10 +225,10 @@ where
     W: NanoWrite,
 {
     let report = interrupt::free(|cs| {
-        let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
+        let shared = SHARED_DATA.borrow(cs);
 
         if shared.event_flags.take_tick_event() {
-            Some(shared.cps)
+            Some(shared.cps.get())
         } else {
             None
         }
@@ -289,7 +278,7 @@ fn wait_for_event() {
         CriticalSection::new()
     };
 
-    let shared = unsafe { SHARED_DATA.borrow(cs).get().as_mut().unwrap() };
+    let shared = SHARED_DATA.borrow(cs);
 
     if !shared.event_flags.has_any_event() {
         // Go to sleep until next interrupt.
@@ -331,9 +320,8 @@ pub extern "C" fn main() -> ! {
         "mightyohm.com Geiger Counter 1.00\r\nhttp://mightyohm.com/geiger\r\n"
     );
 
-    // Set pins connected to LED and piezo as outputs.
+    // Set pin connected to LED as outputs.
     let mut led = Led::new(pins.pb4.into_output());
-    let mut _piezo = pins.pb2.into_output();
 
     // Configure PULSE output.
     let pulse = pins.pd6.into_output();
@@ -353,14 +341,8 @@ pub extern "C" fn main() -> ! {
     // Enable external interrupts on pins INT0 and INT1.
     dp.EXINT.gimsk.modify(|_, w| w.int().bits(0b11));
 
-    // Configure the Timers.
-    // Set up TIMER0 for tone generation.
-    // Toggle OC0A (pin PB2) on compare match and set timer to CTC mode.
-    dp.TC0
-        .tccr0a
-        .write(|w| w.com0a().match_toggle().wgm0().ctc());
-    // Stop TIMER0 (no sound).
-    dp.TC0.tccr0b.reset();
+    // Configure the beeper connected to BP2 with timer TIMER0.
+    let mut beeper = Beeper::new(pins.pb2.into_output(), dp.TC0);
 
     // Set up TIMER1 for 1 second interrupts.
     // CTC mode, prescaler = 256 (32us ticks).
@@ -373,7 +355,6 @@ pub extern "C" fn main() -> ! {
     dp.TC1.timsk.write(|w| w.ocie1a().set_bit());
 
     let exint = dp.EXINT;
-    let mut beeper = dp.TC0;
 
     unsafe {
         // SAFETY: Shared peripherals are initialized exclusively in this function
