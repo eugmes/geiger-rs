@@ -258,8 +258,10 @@ where
             if cps > u16::from(u8::MAX) {
                 (u32::from(cps) * 60, P!("INST"))
             } else if smoother.slow_cpm <= THRESHOLD {
+                // Report cpm based on last 60 samples.
                 (u32::from(smoother.slow_cpm), P!("SLOW"))
             } else {
+                // Report cpm based on last 5 samples.
                 let mut fast_cpm = 0u16;
                 for val in smoother.buffer.iter(SHORT_PERIOD) {
                     fast_cpm += u16::from(val);
