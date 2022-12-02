@@ -1,12 +1,5 @@
 [build]
 target = "avr-attiny2313.json"
 
-[target.'cfg(target_arch = "avr")']
-# Switch tables consume pressious RAM on AVR, try to convert them to branches.
-rustflags = ["-C", "passes=lowerswitch"]
-
 [unstable]
 build-std = ["core"]
-
-[env]
-AVR_CPU_FREQUENCY_HZ = "8_000_000"
