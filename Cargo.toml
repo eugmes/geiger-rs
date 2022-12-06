@@ -2,6 +2,12 @@
 edition = "2021"
 name = "geiger"
 version = "0.1.0"
+authors = ["Ievgenii Meshcheriakov <eugen@debian.org>"]
+description = "Geiger Counter with Serial Data Reporting"
+license = "GPL-3.0+"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/eugmes/geiger-rs"
 
 [workspace]
 members = ["nano-fmt", "nano-fmt-macro", "progmem"]
