@@ -1,3 +1,7 @@
+//! This crate provides `write!` and `P!` macros for use with `nano-fmt` crate.
+//!
+//! This code is based on code from `ufmt-macros` crate by Jorge Aparicio
+//! <jorge@japaric.io>. It is licensed under MIT or Apache-2.0 licenses.
 use std::{borrow::Cow, cmp::Ordering, mem};
 
 use proc_macro::TokenStream;
