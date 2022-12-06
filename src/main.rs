@@ -150,10 +150,8 @@ fn INT0() {
     // Send a pulse to the PULSE connector.
     // A delay of 100us limits the max CPS to about 8000.
     // You can comment out this code and increase the max CPS possible (up to 65535!).
-    let pulse = unsafe {
-        // SAFETY: PULSE is initialized in the main function and is exclusively used here.
-        PULSE.assume_init_mut()
-    };
+    // SAFETY: PULSE is initialized in the main function and is exclusively used here.
+    let pulse = unsafe { PULSE.assume_init_mut() };
     pulse.set_high();
     Delay::new().delay_us(PULSE_WIDTH);
     pulse.set_low();
@@ -302,10 +300,8 @@ fn wait_for_event() {
 // flash.
 #[export_name = "main"]
 pub extern "C" fn main() -> ! {
-    let dp = unsafe {
-        // SAFETY: This is the only place where we get the peripherals.
-        hal::Peripherals::steal()
-    };
+    // SAFETY: This is the only place where we get the peripherals.
+    let dp = unsafe { hal::Peripherals::steal() };
     let pins = hal::pins!(dp);
 
     let mut serial = Usart0::new(
@@ -356,8 +352,9 @@ pub extern "C" fn main() -> ! {
 
     let exint = dp.EXINT;
 
+    // SAFETY: Shared peripherals are initialized exclusively in this function
     unsafe {
-        // SAFETY: Shared peripherals are initialized exclusively in this function
+
         PULSE.write(pulse);
         BUTTON.write(button);
         SHARED_EXINT.write(exint);
