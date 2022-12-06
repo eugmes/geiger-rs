@@ -38,11 +38,11 @@ The original code description follows below.
 ## Geiger Counter with Serial Data Reporting
 
 This is the firmware for the mightyohm.com Geiger Counter. There is more
-information at http://mightyohm.com/geiger
+information at https://mightyohm.com/geiger
 
 * Author: Jeff Keyzer
 * Company: MightyOhm Engineering
-* Website: http://mightyohm.com/
+* Website: https://mightyohm.com/
 * Contact: jeff \<at\> mightyohm.com
 
 This firmware controls the ATtiny2313 AVR microcontroller on board the Geiger
