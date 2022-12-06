@@ -25,7 +25,7 @@ $ cargo build --release
 ```
 
 The firmware can then be flashed to the Geiger counter either by using
-[avrdude](https://www.nongnu.org/avrdude/) directly, or by `cargo-avrdude`
+[avrdude](https://www.nongnu.org/avrdude/) directly, or by using `cargo-avrdude`
 crate:
 
 ```
@@ -33,12 +33,12 @@ $ cargo install cargo-avrdude
 $ cargo avrdude --release
 ```
 
-The original code description is following below.
+The original code description follows below.
 
 ## Geiger Counter with Serial Data Reporting
 
-Description: This is the firmware for the mightyohm.com Geiger Counter.
-There is more information at http://mightyohm.com/geiger
+This is the firmware for the mightyohm.com Geiger Counter. There is more
+information at http://mightyohm.com/geiger
 
 * Author: Jeff Keyzer
 * Company: MightyOhm Engineering
