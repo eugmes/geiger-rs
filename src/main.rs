@@ -127,8 +127,6 @@ impl Smoother {
     }
 }
 
-static mut SMOOTHER: Smoother = Smoother::new();
-
 // TODO: Find a way to get rid of configs
 static mut PULSE: MaybeUninit<Pin<Output, PD6>> = MaybeUninit::uninit();
 static mut BUTTON: MaybeUninit<Pin<Input<PullUp>, PD3>> = MaybeUninit::uninit();
@@ -300,6 +298,8 @@ fn wait_for_event() {
 // flash.
 #[export_name = "main"]
 pub extern "C" fn main() -> ! {
+    static mut SMOOTHER: Smoother = Smoother::new();
+
     // SAFETY: This is the only place where we get the peripherals.
     let dp = unsafe { hal::Peripherals::steal() };
     let pins = hal::pins!(dp);
@@ -354,7 +354,6 @@ pub extern "C" fn main() -> ! {
 
     // SAFETY: Shared peripherals are initialized exclusively in this function
     unsafe {
-
         PULSE.write(pulse);
         BUTTON.write(button);
         SHARED_EXINT.write(exint);
