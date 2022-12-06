@@ -1,5 +1,4 @@
 [toolchain]
 channel = "nightly"
-components = ["rustc", "cargo"]
+components = ["rust-src"]
 profile = "minimal"
-targets = ["avr-unknown-unknown"]
