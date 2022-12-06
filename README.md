@@ -7,6 +7,32 @@ Rust code author: Ievgenii Meshcheriakov <eugen@debian.org>.
 This code (including most of the documentation) is based on original C code
 for MightyOhm Geiger counter.
 
+## Build
+
+The firmware requires Rust compiler from
+[nightly channel](https://rust-lang.github.io/rustup/concepts/channels.html).
+
+```
+$ rustup toolchain install nightly
+$ rustup default nightly
+$ cargo build --release
+```
+
+Cargo can be used to build the firmware:
+
+```
+$ cargo build --release
+```
+
+The firmware can then be flashed to the Geiger counter either by using
+[avrdude](https://www.nongnu.org/avrdude/) directly, or by `cargo-avrdude`
+crate:
+
+```
+$ cargo install cargo-avrdude
+$ cargo avrdude --release
+```
+
 The original code description is following below.
 
 ## Geiger Counter with Serial Data Reporting
@@ -37,7 +63,9 @@ The serial port is configured for BAUD baud, 8-N-1 (default 9600).
 
 The data is reported in comma separated value (CSV) format:
 
-> CPS, #####, CPM, #####, uSv/hr, ###.##, SLOW|FAST|INST
+```
+CPS, #####, CPM, #####, uSv/hr, ###.##, SLOW|FAST|INST
+```
 
 There are three modes. Normally, the sample period is LONG_PERIOD (default 60
 seconds). This is SLOW averaging mode. If the last five measured counts exceed a
