@@ -293,11 +293,10 @@ fn wait_for_event() {
     }
 }
 
-// Normally one would use `#[hal::entry]` here, but it generates an additional
-// trampoline function. Doing everything explicitly saves a few bytes of RAM and
-// flash.
-#[export_name = "main"]
-pub extern "C" fn main() -> ! {
+// Inline the main function to avoid generating trampoline and an assertion.
+#[hal::entry]
+#[inline(always)]
+fn main() -> ! {
     static mut SMOOTHER: Smoother = Smoother::new();
 
     // SAFETY: This is the only place where we get the peripherals.
@@ -366,6 +365,6 @@ pub extern "C" fn main() -> ! {
         wait_for_event();
 
         check_event(&mut led, &mut beeper);
-        send_report(&mut serial, unsafe { &mut SMOOTHER });
+        send_report(&mut serial, SMOOTHER);
     }
 }
