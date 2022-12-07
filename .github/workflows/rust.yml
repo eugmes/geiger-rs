@@ -24,3 +24,5 @@ jobs:
         with:
           command: build
           args: --release --all-features
+      - name: Show section sizes
+        run: avr-size target/avr-attiny2313/release/geiger.elf
