@@ -231,7 +231,7 @@ where
     });
 
     if let Some(cps) = report {
-        write!(w, "CPS, {}, CPM, ", cps);
+        write!(w, "CPS, {}, CPM, ", u32::from(cps));
 
         let count = cps.try_into().unwrap_or(u8::MAX);
         let oldest_count = smoother.buffer.put(count);
@@ -247,13 +247,13 @@ where
                 (u32::from(smoother.slow_cpm), P!("SLOW"))
             } else {
                 // Report cpm based on last 5 samples.
-                let mut fast_cpm = 0u16;
+                let mut fast_cpm = 0u32;
                 for val in smoother.buffer.iter(SHORT_PERIOD) {
-                    fast_cpm += u16::from(val);
+                    fast_cpm += u32::from(val);
                 }
-                const FAST_CPM_SCALE: u16 = (LONG_PERIOD as u8 / SHORT_PERIOD) as u16;
+                const FAST_CPM_SCALE: u32 = (LONG_PERIOD as u8 / SHORT_PERIOD) as u32;
                 fast_cpm *= FAST_CPM_SCALE;
-                (u32::from(fast_cpm), P!("FAST"))
+                (fast_cpm, P!("FAST"))
             }
         };
 
