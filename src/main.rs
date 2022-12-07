@@ -204,7 +204,7 @@ fn check_event<P: PinOps>(led: &mut Led<Pin<Output, P>>, beeper: &mut Beeper) {
         led.turn_on();
 
         if !no_beep {
-            beeper.turn_on()
+            beeper.turn_on();
         }
 
         // 10ms delay gives a nice short flash and 'click' on the piezo.

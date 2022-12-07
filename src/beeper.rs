@@ -9,6 +9,7 @@ pub struct Beeper {
 }
 
 impl Beeper {
+    #[must_use]
     pub fn new(_pin: Pin<Output, PB2>, timer: TC0) -> Self {
         // Set up TIMER0 for tone generation.
         // Toggle OC0A (pin PB2) on compare match and set timer to CTC mode.
