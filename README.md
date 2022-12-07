@@ -1,15 +1,15 @@
 # Geiger Counter Firmware Written in Rust
 
-This is Rust firmware for a geiger counter is based on ATTiny2313 MCU.
+This is a Rust firmware for a Geiger counter based on the ATTiny2313 MCU.
 
 Rust code author: Ievgenii Meshcheriakov <eugen@debian.org>.
 
-This code (including most of the documentation) is based on original C code
-for MightyOhm Geiger counter.
+This code (including most of the documentation) is based on the original C code
+for [MightyOhm Geiger counter](https://mightyohm.com/geiger).
 
 ## Build
 
-The firmware requires Rust compiler from
+The firmware requires a Rust compiler from the
 [nightly channel](https://rust-lang.github.io/rustup/concepts/channels.html).
 
 ```
@@ -25,8 +25,8 @@ $ cargo build --release
 ```
 
 The firmware can then be flashed to the Geiger counter either by using
-[avrdude](https://www.nongnu.org/avrdude/) directly, or by using `cargo-avrdude`
-crate:
+[avrdude](https://www.nongnu.org/avrdude/) directly, or by using the
+`cargo-avrdude` crate:
 
 ```
 $ cargo install cargo-avrdude
