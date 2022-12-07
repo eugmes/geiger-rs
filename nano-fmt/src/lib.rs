@@ -32,7 +32,7 @@ macro_rules! display_unsigned {
                     }
 
                     if print || (div == 0) {
-                        let b = 0x30 + dig;
+                        let b = b'0' + dig;
                         f.write_byte(b);
                     }
                 }
