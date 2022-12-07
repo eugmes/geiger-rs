@@ -14,7 +14,7 @@ impl Fixed2 {
 
 impl NanoDisplay for Fixed2 {
     fn fmt<F: NanoWrite>(self, f: &mut F) {
-        let fract = self.0 % 100;
+        let fract = (self.0 % 100) as u8;
         let integer = self.0 / 100;
 
         integer.fmt(f);
@@ -24,6 +24,6 @@ impl NanoDisplay for Fixed2 {
         if fract < 10 {
             f.write_byte(b'0');
         }
-        fract.fmt(f);
+        u32::from(fract).fmt(f);
     }
 }
