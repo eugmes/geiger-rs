@@ -1,4 +1,4 @@
-use avr_hal_generic::port::{mode::Output, Pin, PinOps};
+use crate::hal::port::{mode::Output, Pin, PinOps};
 
 pub struct Led<P> {
     p: P,

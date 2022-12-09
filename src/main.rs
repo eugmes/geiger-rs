@@ -6,12 +6,14 @@
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
 use core::{arch::asm, cell::Cell, mem::MaybeUninit};
-use geiger::{beeper::Beeper, fixed::Fixed2, led::Led, ring_buffer::RingBuffer, usart::Usart0};
+use geiger::{
+    beeper::Beeper, delay::Delay, fixed::Fixed2, hal, led::Led, ring_buffer::RingBuffer,
+    usart::Usart0,
+};
 use nano_fmt::NanoWrite;
 use panic_halt as _;
 use progmem::{write, P};
 
-use attiny_hal as hal;
 use hal::{
     pac::EXINT,
     port::Pin,
@@ -21,12 +23,6 @@ use hal::{
     },
     prelude::*,
 };
-
-/// Board clock rate.
-type DefaultClock = hal::clock::MHz8;
-
-type Baudrate = geiger::usart::Baudrate<DefaultClock>;
-type Delay = hal::delay::Delay<DefaultClock>;
 
 /// UART baud rate.
 const BAUDRATE: u32 = 9600;
@@ -307,7 +303,7 @@ fn main() -> ! {
         dp.USART,
         pins.pd0.into_pull_up_input(),
         pins.pd1.into_output(),
-        Baudrate::new(BAUDRATE),
+        BAUDRATE,
     );
 
     write!(

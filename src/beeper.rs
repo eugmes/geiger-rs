@@ -1,5 +1,4 @@
-use attiny_hal as hal;
-use hal::{
+use crate::hal::{
     pac::TC0,
     port::{mode::Output, Pin, PB2},
 };
