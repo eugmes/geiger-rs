@@ -19,10 +19,8 @@ impl<const SIZE: usize> RingBuffer<SIZE> {
     /// Put a new value into the buffer returning the discarded value.
     pub fn put(&mut self, value: u8) -> u8 {
         debug_assert!((self.index as usize) < self.samples.len());
-        let elem = unsafe {
-            // SAFETY: self.index is always in bounds of self.samples.
-            self.samples.get_unchecked_mut(self.index as usize)
-        };
+        // SAFETY: `self.index` is always in bounds of `self.samples`.
+        let elem = unsafe { self.samples.get_unchecked_mut(self.index as usize) };
         let old_value = mem::replace(elem, value);
 
         self.index = if self.index as usize == SIZE - 1 {
@@ -66,10 +64,8 @@ impl<const SIZE: usize> Iterator for Iter<'_, SIZE> {
             self.index - 1
         };
         debug_assert!((self.index as usize) < self.samples.len());
-        let elem = unsafe {
-            // SAFETY: self.index is always in bounds of self.samples.
-            self.samples.get_unchecked(self.index as usize)
-        };
+        // SAFETY: `self.index` is always in bounds of `self.samples`.
+        let elem = unsafe { self.samples.get_unchecked(self.index as usize) };
         Some(*elem)
     }
 }
