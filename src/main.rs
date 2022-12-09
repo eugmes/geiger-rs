@@ -8,7 +8,7 @@ use avr_device::interrupt::{self, CriticalSection, Mutex};
 use core::{arch::asm, cell::Cell, mem::MaybeUninit};
 use geiger::{
     beeper::Beeper, delay::Delay, fixed::Fixed2, hal, led::Led, ring_buffer::RingBuffer,
-    usart::Usart0,
+    timer::Timer, usart::Usart0,
 };
 use nano_fmt::NanoWrite;
 use panic_halt as _;
@@ -336,14 +336,7 @@ fn main() -> ! {
     let mut beeper = Beeper::new(pins.pb2.into_output(), dp.TC0);
 
     // Set up TIMER1 for 1 second interrupts.
-    // CTC mode, prescaler = 256 (32us ticks).
-    dp.TC1
-        .tccr1b
-        .write(|w| w.wgm1().bits(0b01).cs1().prescale_256());
-    // 32us * 31250 = 1 sec
-    dp.TC1.ocr1a.write(|w| unsafe { w.bits(31250) });
-    // TIMER1 overflow interrupt enable.
-    dp.TC1.timsk.write(|w| w.ocie1a().set_bit());
+    let _timer = Timer::new(dp.TC1);
 
     let exint = dp.EXINT;
 

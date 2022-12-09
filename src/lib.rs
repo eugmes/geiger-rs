@@ -6,6 +6,7 @@ pub mod delay;
 pub mod fixed;
 pub mod led;
 pub mod ring_buffer;
+pub mod timer;
 pub mod usart;
 
 pub use attiny_hal as hal;
