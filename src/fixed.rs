@@ -1,9 +1,9 @@
 use nano_fmt::{NanoDisplay, NanoWrite};
 
+/// Fixed point value with 2 decimal digits.
 #[derive(Clone, Copy)]
 pub struct Fixed2(u32);
 
-/// Fixed point value with 2 decimal digits.
 impl Fixed2 {
     /// Construct new value from scaled integer.
     #[must_use]
