@@ -31,13 +31,12 @@ impl<const SIZE: usize> RingBuffer<SIZE> {
         old_value
     }
 
-    /// Return iterator over `count` values in the buffer.
+    /// Returns iterator over values in the buffer.
     #[must_use]
-    pub fn iter(&self, count: u8) -> Iter<SIZE> {
+    pub fn iter(&self) -> Iter<SIZE> {
         Iter {
             samples: &self.samples,
             index: self.index,
-            count,
         }
     }
 }
@@ -46,18 +45,12 @@ impl<const SIZE: usize> RingBuffer<SIZE> {
 pub struct Iter<'a, const SIZE: usize> {
     samples: &'a [u8; SIZE],
     index: u8,
-    count: u8,
 }
 
 impl<const SIZE: usize> Iterator for Iter<'_, SIZE> {
     type Item = u8;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.count == 0 {
-            return None;
-        }
-        self.count -= 1;
-
         self.index = if self.index == 0 {
             (SIZE - 1) as u8
         } else {

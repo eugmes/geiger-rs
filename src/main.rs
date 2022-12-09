@@ -34,7 +34,7 @@ const BAUDRATE: u32 = 9600;
 /// Width of the PULSE output (in microseconds).
 const PULSE_WIDTH: u8 = 100;
 
-const SHORT_PERIOD: u8 = 5;
+const SHORT_PERIOD: usize = 5;
 const LONG_PERIOD: usize = 60;
 
 /// CPM threshold for fast averaging mode.
@@ -248,10 +248,10 @@ where
             } else {
                 // Report cpm based on last 5 samples.
                 let mut fast_cpm = 0u32;
-                for val in smoother.buffer.iter(SHORT_PERIOD) {
+                for val in smoother.buffer.iter().take(SHORT_PERIOD) {
                     fast_cpm += u32::from(val);
                 }
-                const FAST_CPM_SCALE: u32 = (LONG_PERIOD as u8 / SHORT_PERIOD) as u32;
+                const FAST_CPM_SCALE: u32 = (LONG_PERIOD / SHORT_PERIOD) as u32;
                 fast_cpm *= FAST_CPM_SCALE;
                 (fast_cpm, P!("FAST"))
             }
