@@ -1,4 +1,4 @@
-use crate::{hal, clock::BoardClock, clock::Clock};
+use crate::{clock::BoardClock, clock::Clock, hal};
 
 /// A timer using `TC1` peripheral.
 ///

@@ -1,33 +1,31 @@
 [package]
-edition = "2021"
-name = "geiger"
-version = "0.1.0"
 authors = ["Ievgenii Meshcheriakov <eugen@debian.org>"]
 description = "Geiger Counter with Serial Data Reporting"
+edition = "2021"
 license = "GPL-3.0+"
+name = "geiger"
 readme = "README.md"
 repository = "https://github.com/eugmes/geiger-rs"
+version = "0.1.0"
 
 [workspace]
 members = ["nano-fmt", "nano-fmt-macro", "progmem"]
 
 [dependencies]
-embedded-hal = "0.2.3"
+avr-device = {version = "0.7.0", features = ["attiny2313"]}
+embedded-hal = "1.0.0"
 nano-fmt = {path = "nano-fmt"}
-panic-halt = "0.2.0"
+panic-halt = "1.0.0"
 progmem = {path = "progmem"}
 
 [dependencies.attiny-hal]
 features = ["attiny2313", "rt"]
 git = "https://github.com/rahix/avr-hal"
-rev = "533159f6c6a508abe4ecec34bf5013d7a1eb0cf5"
+rev = "af47f08c315dfacd7d1f8437f8bcefc34cec0959"
 
 [dependencies.avr-hal-generic]
 git = "https://github.com/rahix/avr-hal"
-rev = "533159f6c6a508abe4ecec34bf5013d7a1eb0cf5"
-
-[dependencies.avr-device]
-version = "0.4.0"
+rev = "af47f08c315dfacd7d1f8437f8bcefc34cec0959"
 
 [profile.dev]
 lto = true
