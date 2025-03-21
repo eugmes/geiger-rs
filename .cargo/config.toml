@@ -1,5 +1,8 @@
 [build]
-target = "avr-attiny2313.json"
+target = "avr-none"
 
 [unstable]
 build-std = ["core"]
+
+[target.'cfg(target_arch = "avr")']
+rustflags = ["-C", "target-cpu=attiny2313"]
