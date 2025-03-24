@@ -1,7 +1,7 @@
 [package]
 authors = ["Ievgenii Meshcheriakov <eugen@debian.org>"]
 description = "Geiger Counter with Serial Data Reporting"
-edition = "2021"
+edition = "2024"
 license = "GPL-3.0+"
 name = "geiger"
 readme = "README.md"
@@ -41,3 +41,6 @@ panic = "abort"
 
 [package.metadata.cargo_avrdude]
 args = ["-p", "t2313", "-e", "-U", "flash:w:{}"]
+
+[workspace.package]
+edition = "2024"

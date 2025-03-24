@@ -7,7 +7,7 @@ use core::num::NonZeroU8;
 
 use cfg_if::cfg_if;
 use nano_fmt::{NanoDisplay, NanoWrite};
-pub use nano_fmt_macro::{write, P};
+pub use nano_fmt_macro::{P, write};
 
 /// C-style string stored in program memory.
 /// It is only suitable for formatted output.
@@ -54,7 +54,7 @@ impl Iterator for Iter {
                         inout("Z") self.0,
                         // Technically, this does access program memory, but it should
                         // not in any way influence the program.
-                        options(pure, nomem, preserves_flags, nostack),
+                        options(pure, readonly, preserves_flags, nostack),
                     };
                 } else {
                     b = *p;

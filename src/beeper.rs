@@ -1,6 +1,6 @@
 use crate::hal::{
     pac::TC0,
-    port::{mode::Output, Pin, PB2},
+    port::{PB2, Pin, mode::Output},
 };
 
 pub struct Beeper {
@@ -28,7 +28,7 @@ impl Beeper {
         // Set prescaler to clk/8 (1Mhz) or 1us/count.
         self.timer.tccr0b.modify(|_, w| w.cs0().prescale_8());
         // 160 = toggle OCR0A every 160ms, period = 320us, freq= 3.125kHz
-        self.timer.ocr0a.write(|w| unsafe { w.bits(160) });
+        self.timer.ocr0a.write(|w| w.bits(160));
     }
 
     /// Turns off the beeper.

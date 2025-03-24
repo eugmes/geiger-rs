@@ -8,11 +8,11 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
+    Expr, LitByteStr, LitStr, Token,
     parse::{self, Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    Expr, LitByteStr, LitStr, Token,
 };
 
 struct Input {
@@ -68,7 +68,7 @@ fn mk_pstr(s: &str) -> proc_macro2::TokenStream {
     let data = LitByteStr::new(&data, Span::call_site());
 
     quote!({
-        #[cfg_attr(target_arch = "avr", link_section = ".progmem.data")]
+        #[cfg_attr(target_arch = "avr", unsafe(link_section = ".progmem.data"))]
         static __s: [u8; #size] = *#data;
         unsafe { progmem::PStr::new(__s.as_ptr() as *const u8) }
     })

@@ -20,10 +20,8 @@ impl Usart0 {
         baudrate: u32,
     ) -> Self {
         let baudrate = Baudrate::new(baudrate);
-        p.ubrrh
-            .write(|w| unsafe { w.bits((baudrate.ubrr >> 8) as u8) });
-        p.ubrrl
-            .write(|w| unsafe { w.bits((baudrate.ubrr & 0xFF) as u8) });
+        p.ubrrh.write(|w| w.bits((baudrate.ubrr >> 8) as u8));
+        p.ubrrl.write(|w| w.bits((baudrate.ubrr & 0xFF) as u8));
         p.ucsra.write(|w| w.u2x().bit(baudrate.u2x));
 
         // Enable receiver and transmitter.
@@ -37,8 +35,6 @@ impl NanoWrite for Usart0 {
     fn write_byte(&mut self, b: u8) {
         while self.p.ucsra.read().udre().bit_is_clear() {}
 
-        unsafe {
-            self.p.udr.write(|w| w.bits(b));
-        }
+        self.p.udr.write(|w| w.bits(b));
     }
 }
