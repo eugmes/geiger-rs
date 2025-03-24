@@ -20,7 +20,7 @@ impl Timer {
             w.wgm1().bits(0b01).cs1().prescale_256()
         });
 
-        p.ocr1a.write(|w| unsafe { w.bits(counter_max) });
+        p.ocr1a.write(|w| w.bits(counter_max));
         // TIMER1 overflow interrupt enable.
         p.timsk.write(|w| w.ocie1a().set_bit());
         Self {}

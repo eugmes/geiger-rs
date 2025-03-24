@@ -3,23 +3,30 @@
 #![feature(abi_avr_interrupt)]
 #![feature(asm_experimental_arch)]
 #![feature(cell_update)]
+#![allow(static_mut_refs)]
+#![allow(unsafe_op_in_unsafe_fn)]
 
 use avr_device::interrupt::{self, CriticalSection, Mutex};
-use core::{arch::asm, cell::Cell, mem::MaybeUninit};
+use core::{
+    arch::asm,
+    cell::Cell,
+    mem::MaybeUninit,
+    sync::atomic::{Ordering, compiler_fence},
+};
 use geiger::{
     beeper::Beeper, delay::Delay, fixed::Fixed2, hal, led::Led, ring_buffer::RingBuffer,
     timer::Timer, usart::Usart0,
 };
 use nano_fmt::NanoWrite;
 use panic_halt as _;
-use progmem::{write, P};
+use progmem::{P, write};
 
 use hal::{
     pac::EXINT,
     port::Pin,
     port::{
+        PD3, PD6, PinOps,
         mode::{Input, Output, PullUp},
-        PinOps, PD3, PD6,
     },
     prelude::*,
 };
@@ -292,7 +299,7 @@ fn wait_for_event() {
 // Inline the main function to avoid generating trampoline and an assertion.
 #[hal::entry]
 #[inline(always)]
-fn main() -> ! {
+unsafe fn main() -> ! {
     static mut SMOOTHER: Smoother = Smoother::new();
 
     // SAFETY: This is the only place where we get the peripherals.
@@ -349,6 +356,8 @@ fn main() -> ! {
 
     // Set sleep mode to IDLE and enable sleep.
     dp.CPU.mcucr.modify(|_, w| w.sm().idle().se().set_bit());
+
+    compiler_fence(Ordering::SeqCst);
 
     loop {
         wait_for_event();

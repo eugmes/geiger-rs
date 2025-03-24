@@ -8,6 +8,7 @@ pub struct RingBuffer<const SIZE: usize> {
 
 impl<const SIZE: usize> RingBuffer<SIZE> {
     /// Create a new buffer filled with zeroes.
+    #[allow(clippy::new_without_default)]
     #[must_use]
     pub const fn new() -> Self {
         Self {

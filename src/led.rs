@@ -1,4 +1,4 @@
-use crate::hal::port::{mode::Output, Pin, PinOps};
+use crate::hal::port::{Pin, PinOps, mode::Output};
 
 pub struct Led<P> {
     p: P,
